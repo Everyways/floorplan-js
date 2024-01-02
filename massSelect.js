@@ -18,6 +18,7 @@ function massSelect(opts) {
         }
         return a;
     };
+    var arrayArea = [];
     this.foreach = function (items, callback, scope) {
         if (Object.prototype.toString.call(items) === '[object Object]') {
             for (var prop in items) {
@@ -66,18 +67,21 @@ function massSelect(opts) {
     }
     this.rectOpen = function (e) {
         // no mass select if pointer on positionned element
-        if (!e.target.hasAttribute('draggable')) {            
+        if (!e.target.hasAttribute('draggable')) {
             self.options.start && self.options.start(e);
             if (self.options.key && !e[self.options.key]) {
                 return;
             }
             document.body.classList.add('s-noselect');
-            self.foreach(self.items, function (el) {
-                el.addEventListener('click', self.suspend, true); //skip any clicks
-                if (!e[self.options.moreUsing]) {
-                    el.classList.remove(self.options.selectedClass);
-                }
-            });
+            if (!e.target.classList.contains('textArea')) {
+                self.foreach(self.items, function (el) {
+                    el.addEventListener('click', self.suspend, true); //skip any clicks
+                    if (!e[self.options.moreUsing]) {
+                        el.classList.remove(self.options.selectedClass);
+                    }
+                    console.log('ici');
+                });
+            }
             self.ipos = [e.pageX, e.pageY];
             if (!rb()) {
                 var gh = document.createElement('div');
@@ -159,43 +163,77 @@ function massSelect(opts) {
     }
     this.userMergeAction = function (arrayEl, userText) {
         if (arrayEl.length === 0) { return; }
-
+        var newArea = [];
         var elLines = 0;
         var elIntervalCol = 0;
-        var parentZero = arrayEl[0].parentNode;
+        var elLastColLast = arrayEl[arrayEl.length -1].getAttribute('number');
+        var borderStyle = 'thin solid #000';
+        var textOk = self.htmlSpecialChars(userText);
         // logic suite is i+1
         for (var i = 0; i < arrayEl.length; i++) {
             var numEl = parseInt(arrayEl[i].getAttribute('number'));
+            arrayEl[i].style.opacity = 0.4;
             // next line
             if (numEl != lastRef+1) {
                 elLines++;
+                arrayEl[i].style.borderLeft = borderStyle;
+                // last line elemnt
+                if (i > 1) {
+                    arrayEl[i-1].style.borderRight = borderStyle;
+                    if (elLines == 1) {
+                        arrayEl[i-1].style.borderTop = borderStyle;
+                    }
+                }
             } 
             // first bloc line
             if (elLines == 1) {
-                // count selection length
+                arrayEl[i].style.borderTop = borderStyle;
                 if (numEl == lastRef+1) {
                     elIntervalCol++;
                 }
             }
-            var lastRef = numEl;
-            // remove useless td
-            if (i > 0) {
-                arrayEl[i].parentNode.remove();
+            // last element
+            if (i == arrayEl.length-1) {
+                arrayEl[i].style.borderRight = borderStyle;
+                arrayEl[i].style.borderBottom = borderStyle
             }
+
+            var lastRef = numEl;
         }
-        arrayEl[0].remove();
-        parentZero.colSpan = elIntervalCol+1;
-        parentZero.rowSpan = elLines;
-        parentZero.style.backgroundColor = 'yellow';
-        parentZero.style.border = 'thin solid #000';
-        // Create a new p element with user text
-        let p = document.createElement('p');
-        p.textContent = userText;
-        parentZero.appendChild(p);
-        if (elLines > elIntervalCol) {
-            parentZero.classList.add('vertical');
+        // if 1 col only
+        if (elIntervalCol == 0) {
+            arrayEl[0].style.borderRight = borderStyle;
         }
 
+        // Create a new p element with trash & user text
+        let element = document.createElement('p');
+        element.innerHTML = '🗑️ '+textOk;
+        element.setAttribute('data-slug', textOk);
+        element.addEventListener('click', function() {
+            self.deleteArea(textOk);
+        });
+        element.style.cursor = 'pointer';
+        element.style.position = "absolute";
+        element.style.margin = "0px 5px";
+        element.classList.add('textArea');
+        if (elLines > elIntervalCol) {
+            element.classList.add('vertical');
+        } 
+        arrayEl[0].parentNode.appendChild(element);
+
+        // draw bottom line last row
+        for (var i = 0; i < arrayEl.length; i++) {
+            if (i >= arrayEl.length-1 - elIntervalCol) {
+                arrayEl[i].style.borderBottom = borderStyle;
+            }
+            // add items to array when setted-up
+            newArea.push(arrayEl);
+        }
+        // add items array to items array storage
+        arrayArea.push({textOk, newArea});
+    }
+    this.htmlSpecialChars = function (htmlString) {
+        return encodeURIComponent(htmlString);
     }
     this.rectDraw = function (e) {
         var g = rb();
@@ -218,5 +256,3 @@ function massSelect(opts) {
     return this;
 
 }
-
-
